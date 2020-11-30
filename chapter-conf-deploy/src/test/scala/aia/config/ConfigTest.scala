@@ -1,11 +1,11 @@
 package aia.config
 
 import akka.actor.ActorSystem
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 import com.typesafe.config.ConfigFactory
-import org.scalatest.MustMatchers
+import org.scalatest.matchers.must.Matchers
 
-class ConfigTest extends WordSpecLike with MustMatchers {
+class ConfigTest extends AnyWordSpecLike with Matchers {
 
   "Configuration" must {
     "has configuration" in {
