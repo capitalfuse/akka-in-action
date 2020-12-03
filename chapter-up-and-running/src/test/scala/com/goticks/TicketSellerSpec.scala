@@ -2,11 +2,12 @@ package com.goticks
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.scalatest.{MustMatchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 
-class TickerSellerSpec extends TestKit(ActorSystem("testTickets"))
-                         with WordSpecLike
-                         with MustMatchers
+class TicketSellerSpec extends TestKit(ActorSystem("testTickets"))
+                         with AnyWordSpecLike
+                         with Matchers
                          with ImplicitSender
                          with StopSystemAfterAll {
   "The TicketSeller" must {
@@ -22,11 +23,11 @@ class TickerSellerSpec extends TestKit(ActorSystem("testTickets"))
 
       expectMsg(Tickets(event, Vector(Ticket(1))))
 
-      val nrs = (2 to 10)
+      val nrs = 2 to 10
       nrs.foreach(_ => ticketingActor ! Buy(1))
 
       val tickets = receiveN(9)
-      tickets.zip(nrs).foreach { case (Tickets(event, Vector(Ticket(id))), ix) => id must be(ix) }
+      tickets.zip(nrs).foreach { case (Tickets(_, Vector(Ticket(id))), ix) => id must be(ix) }
 
       ticketingActor ! Buy(1)
       expectMsg(Tickets(event))
@@ -51,17 +52,18 @@ class TickerSellerSpec extends TestKit(ActorSystem("testTickets"))
       val secondBatchSize = 5
       val nrBatches = 18
 
-      val batches = (1 to nrBatches)
+      val batches = 1 to nrBatches
       batches.foreach(_ => ticketingActor ! Buy(secondBatchSize))
 
       val tickets = receiveN(nrBatches)
 
       tickets.zip(batches).foreach {
-        case (Tickets(event, bought), ix) =>
+        case (Tickets(_, bought), ix) =>
           bought.size must equal(secondBatchSize)
           val last = ix * secondBatchSize + firstBatchSize
           val first = ix * secondBatchSize + firstBatchSize - (secondBatchSize - 1)
           bought.map(_.id) must equal((first to last).toVector)
+        case (_, _) => println("error")
       }
 
       ticketingActor ! Buy(1)
