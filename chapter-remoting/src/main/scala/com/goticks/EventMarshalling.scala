@@ -15,11 +15,11 @@ case class Error(message: String)
 trait EventMarshalling  extends DefaultJsonProtocol {
   import BoxOffice._
 
-  implicit val eventDescriptionFormat = jsonFormat1(EventDescription)
-  implicit val eventFormat = jsonFormat2(Event)
-  implicit val eventsFormat = jsonFormat1(Events)
-  implicit val ticketRequestFormat = jsonFormat1(TicketRequest)
-  implicit val ticketFormat = jsonFormat1(TicketSeller.Ticket)
-  implicit val ticketsFormat = jsonFormat2(TicketSeller.Tickets)
-  implicit val errorFormat = jsonFormat1(Error)
+  implicit val eventDescriptionFormat: RootJsonFormat[EventDescription] = jsonFormat1(EventDescription)
+  implicit val eventFormat: RootJsonFormat[Event] = jsonFormat2(Event)
+  implicit val eventsFormat: RootJsonFormat[Events] = jsonFormat1(Events)
+  implicit val ticketRequestFormat: RootJsonFormat[TicketRequest] = jsonFormat1(TicketRequest)
+  implicit val ticketFormat: RootJsonFormat[TicketSeller.Ticket] = jsonFormat1(TicketSeller.Ticket)
+  implicit val ticketsFormat: RootJsonFormat[TicketSeller.Tickets] = jsonFormat2(TicketSeller.Tickets)
+  implicit val errorFormat: RootJsonFormat[Error] = jsonFormat1(Error)
 }

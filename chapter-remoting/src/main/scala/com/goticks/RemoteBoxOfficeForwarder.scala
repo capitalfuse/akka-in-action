@@ -6,7 +6,7 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 
 object RemoteBoxOfficeForwarder {
-  def props(implicit timeout: Timeout) = {
+  def props(implicit timeout: Timeout): Props = {
     Props(new RemoteBoxOfficeForwarder)
   }
   def name = "forwarder"
@@ -26,7 +26,7 @@ class RemoteBoxOfficeForwarder(implicit timeout: Timeout)
     context.setReceiveTimeout(Duration.Undefined)
   }
 
-  def receive = deploying
+  def receive: Receive = deploying
 
   def deploying: Receive = {
 
@@ -38,7 +38,7 @@ class RemoteBoxOfficeForwarder(implicit timeout: Timeout)
   }
 
   def maybeActive(actor: ActorRef): Receive = {
-    case Terminated(actorRef) =>
+    case Terminated(_) =>
       log.info("Actor $actorRef terminated.")
       log.info("switching to deploying state")
       context.become(deploying)

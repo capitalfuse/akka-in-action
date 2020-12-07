@@ -1,10 +1,10 @@
 package com.goticks
 
-import org.scalatest.MustMatchers
-import org.scalatest.WordSpec
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 import scala.concurrent.{Future, Await}
 
-class GetTicketInfoSpec extends WordSpec with MustMatchers {
+class GetTicketInfoSpec extends AnyWordSpecLike with Matchers {
 
   object TicketInfoService extends TicketInfoService with MockWebServiceCalls
   import TicketInfoService._
@@ -42,22 +42,22 @@ trait MockWebServiceCalls extends WebServiceCalls {
   }
 
   def callWeatherXService(ticketInfo: TicketInfo): Future[Option[Weather]] = {
-    Future { Some(Weather(30, false)) }
+    Future { Some(Weather(30, precipitation = false)) }
   }
 
   def callWeatherYService(ticketInfo: TicketInfo): Future[Option[Weather]] = {
-    Future { Some(Weather(30, false)) }
+    Future { Some(Weather(30, precipitation = false)) }
   }
 
   def callTrafficService(origin: Location, destination: Location, time: DateTime): Future[Option[RouteByCar]] = {
     Future {
-      Some(RouteByCar("route1", time - (35.minutes), origin, destination, 30.minutes, 5.minutes))
+      Some(RouteByCar("route1", time - 35.minutes, origin, destination, 30.minutes, 5.minutes))
     }
   }
 
   def callPublicTransportService(origin: Location, destination: Location, time: DateTime): Future[Option[PublicTransportAdvice]] = {
     Future {
-      Some(PublicTransportAdvice("public transport route 1", time - (20.minutes), origin, destination, 20.minutes))
+      Some(PublicTransportAdvice("public transport route 1", time - 20.minutes, origin, destination, 20.minutes))
     }
   }
 

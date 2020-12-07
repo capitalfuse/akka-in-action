@@ -11,14 +11,14 @@ trait TicketInfoService extends WebServiceCalls {
   type Recovery[T] = PartialFunction[Throwable,T]
 
   // recover with None
-  def withNone[T]: Recovery[Option[T]] = { case NonFatal(e) => None }
+  def withNone[T]: Recovery[Option[T]] = { case NonFatal(_) => None }
 
   // recover with empty sequence
-  def withEmptySeq[T]: Recovery[Seq[T]] = { case NonFatal(e) => Seq() }
+  def withEmptySeq[T]: Recovery[Seq[T]] = { case NonFatal(_) => Seq() }
 
   // recover with the ticketInfo that was built in the previous step
   def withPrevious(previous: TicketInfo): Recovery[TicketInfo] = {
-    case NonFatal(e) => previous
+    case NonFatal(_) => previous
   }
 
   def getTicketInfo(ticketNr: String, location: Location): Future[TicketInfo] = {
@@ -40,7 +40,7 @@ trait TicketInfoService extends WebServiceCalls {
 
       val ticketInfos = Seq(infoWithTravelAdvice, infoWithWeather)
 
-      val infoWithTravelAndWeather: Future[TicketInfo] = Future.fold(ticketInfos)(info) { (acc, elem) =>
+      val infoWithTravelAndWeather: Future[TicketInfo] = Future.foldLeft(ticketInfos)(info) { (acc, elem) =>
         val (travelAdvice, weather) = (elem.travelAdvice, elem.weather)
 
         acc.copy(travelAdvice = travelAdvice.orElse(acc.travelAdvice),

@@ -26,9 +26,9 @@ object Main extends App
     Http().newServerAt(host, port).bind(api) //Starts the HTTP server
  
   val log =  Logging(system.eventStream, "go-ticks")
-  bindingFuture.map { serverBinding =>
+  val binding: Unit = bindingFuture map { serverBinding =>
     log.info(s"RestApi bound to ${serverBinding.localAddress} ")
-  }.onComplete {
+  } onComplete {
     case Success(_) => println("Success")
     case Failure(_) => println("Failed to bind to {}:{}!", host, port)
       system.terminate()

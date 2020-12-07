@@ -17,7 +17,7 @@ class RemoteLookupProxy(path: String)
     selection ! Identify(path)
   }
 
-  def receive = identify
+  def receive: Receive = identify
 
   def identify: Receive = {
     case ActorIdentity(`path`, Some(actor)) =>

@@ -6,7 +6,7 @@ import akka.actor._
 import akka.util.Timeout
 
 object BoxOffice {
-  def props(implicit timeout: Timeout) = Props(new BoxOffice)
+  def props(implicit timeout: Timeout): Props = Props(new BoxOffice)
   def name = "boxOffice"
 
   case class CreateEvent(name: String, tickets: Int)
@@ -27,12 +27,12 @@ class BoxOffice(implicit timeout: Timeout) extends Actor {
   import BoxOffice._
   import context._
 
-  def createTicketSeller(name: String) =
+  def createTicketSeller(name: String): ActorRef =
     context.actorOf(TicketSeller.props(name), name)
 
-  def receive = {
+  def receive: Receive = {
     case CreateEvent(name, tickets) =>
-      def create() = {
+      def create(): Unit = {
         val eventTickets = createTicketSeller(name)
         val newTickets = (1 to tickets).map { ticketId =>
           TicketSeller.Ticket(ticketId)
@@ -43,15 +43,15 @@ class BoxOffice(implicit timeout: Timeout) extends Actor {
       context.child(name).fold(create())(_ => sender() ! EventExists)
 
     case GetTickets(event, tickets) =>
-      def notFound() = sender() ! TicketSeller.Tickets(event)
-      def buy(child: ActorRef) =
+      def notFound(): Unit = sender() ! TicketSeller.Tickets(event)
+      def buy(child: ActorRef): Unit =
         child.forward(TicketSeller.Buy(tickets))
 
       context.child(event).fold(notFound())(buy)
 
     case GetEvent(event) =>
-      def notFound() = sender() ! None
-      def getEvent(child: ActorRef) = child forward TicketSeller.GetEvent
+      def notFound(): Unit = sender() ! None
+      def getEvent(child: ActorRef): Unit = child forward TicketSeller.GetEvent
       context.child(event).fold(notFound())(getEvent)
 
     case GetEvents =>
@@ -66,8 +66,8 @@ class BoxOffice(implicit timeout: Timeout) extends Actor {
       pipe(convertToEvents(Future.sequence(getEvents))) to sender()
 
     case CancelEvent(event) =>
-      def notFound() = sender() ! None
-      def cancelEvent(child: ActorRef) = child forward TicketSeller.Cancel
+      def notFound(): Unit = sender() ! None
+      def cancelEvent(child: ActorRef): Unit = child forward TicketSeller.Cancel
       context.child(event).fold(notFound())(cancelEvent)
   }
 }
