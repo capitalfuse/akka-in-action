@@ -1,9 +1,9 @@
 package aia.cluster
 package words
 
-import com.typesafe.config.ConfigFactory
 import akka.actor.{Props, ActorSystem}
 import akka.cluster.Cluster
+import com.typesafe.config.ConfigFactory
 
 import JobReceptionist.JobRequest
 
@@ -15,11 +15,11 @@ object Main extends App {
 
   if(system.settings.config.getStringList("akka.cluster.roles").contains("master")) {
     Cluster(system).registerOnMemberUp {
-      val receptionist = system.actorOf(Props[JobReceptionist], "receptionist")
+      val receptionist = system.actorOf(Props[JobReceptionist](), "receptionist")
       println("Master node is ready.")
 
       val text = List("this is a test", "of some very naive word counting", "but what can you say", "it is what it is")
-      receptionist ! JobRequest("the first job", (1 to 100000).flatMap(i => text ++ text).toList)
+      receptionist ! JobRequest("the first job", (1 to 100000).flatMap(_ => text ++ text).toList)
       system.actorOf(Props(new ClusterDomainEventListener), "cluster-listener")
     }
   }

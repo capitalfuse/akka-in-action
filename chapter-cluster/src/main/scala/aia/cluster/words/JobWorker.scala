@@ -7,7 +7,7 @@ import akka.actor._
 
 
 object JobWorker {
-  def props = Props(new JobWorker)
+  def props: Props = Props(new JobWorker)
 
   case class Work(jobName: String, master: ActorRef)
   case class Task(input: List[String], master: ActorRef)
@@ -22,13 +22,13 @@ class JobWorker extends Actor
 
   var processed = 0
 
-  def receive = idle
+  def receive: Receive = idle
 
   def idle: Receive = {
     case Work(jobName, master) =>
       become(enlisted(jobName, master))
 
-      log.info(s"Enlisted, will start requesting work for job '${jobName}'.")
+      log.info(s"Enlisted, will start requesting work for job '$jobName'.")
       master ! Enlist(self)
       master ! NextTask
       watch(master)
@@ -47,20 +47,20 @@ class JobWorker extends Actor
       master ! NextTask
 
     case WorkLoadDepleted =>
-      log.info(s"Work load ${jobName} is depleted, retiring...")
+      log.info(s"Work load $jobName is depleted, retiring...")
       setReceiveTimeout(Duration.Undefined)
       become(retired(jobName))
 
-    case Terminated(master) =>
+    case Terminated(_) =>
       setReceiveTimeout(Duration.Undefined)
-      log.error(s"Master terminated that ran Job ${jobName}, stopping self.")
+      log.error(s"Master terminated that ran Job $jobName, stopping self.")
       stop(self)
   }
 
 
   def retired(jobName: String): Receive = {
-    case Terminated(master) =>
-      log.error(s"Master terminated that ran Job ${jobName}, stopping self.")
+    case Terminated(_) =>
+      log.error(s"Master terminated that ran Job $jobName, stopping self.")
       stop(self)
     case _ => log.error("I'm retired.")
   }

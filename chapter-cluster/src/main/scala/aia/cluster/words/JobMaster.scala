@@ -2,14 +2,13 @@ package aia.cluster
 package words
 
 import scala.concurrent.duration._
-
 import akka.actor._
 import akka.cluster.routing._
 import akka.routing._
 
 
 object JobMaster {
-  def props = Props(new JobMaster)
+  def props: Props = Props(new JobMaster)
 
   case class StartJob(name: String, text: List[String])
   case class Enlist(worker: ActorRef)
@@ -29,25 +28,25 @@ class JobMaster extends Actor
   import JobWorker._
   import context._
 
-  var textParts = Vector[List[String]]()
-  var intermediateResult = Vector[Map[String, Int]]()
+  var textParts: Vector[List[String]] = Vector[List[String]]()
+  var intermediateResult: Vector[Map[String, Int]] = Vector[Map[String, Int]]()
   var workGiven = 0
   var workReceived = 0
-  var workers = Set[ActorRef]()
+  var workers: Set[ActorRef] = Set[ActorRef]()
 
-  val router = createWorkerRouter
+  val router: ActorRef = createWorkerRouter
 
   override def supervisorStrategy: SupervisorStrategy =
     SupervisorStrategy.stoppingStrategy
 
-  def receive = idle
+  def receive: Receive = idle
 
   def idle: Receive = {
     case StartJob(jobName, text) =>
       textParts = text.grouped(10).toVector
-      val cancellable = context.system.scheduler.schedule(0 millis, 1000 millis, router, Work(jobName, self))
+      val cancellable = context.system.scheduler.scheduleAtFixedRate(0 millis, 1000 millis, router, Work(jobName, self))
       context.setReceiveTimeout(60 seconds)
-      become(working(jobName, sender, cancellable))
+      become(working(jobName, sender(), cancellable))
   }
 
   def working(jobName: String,
@@ -93,7 +92,7 @@ class JobMaster extends Actor
                 workers: Set[ActorRef]): Receive = {
     case MergeResults =>
       val mergedMap = merge()
-      workers.foreach(stop(_))
+      workers.foreach(stop)
       receptionist ! WordCount(jobName, mergedMap)
 
     case Terminated(worker) =>
@@ -105,7 +104,7 @@ class JobMaster extends Actor
       (el, acc) =>
         el.map {
           case (word, count) =>
-            acc.get(word).map(accCount => (word -> (accCount + count))).getOrElse(word -> count)
+            acc.get(word).map(accCount => word -> (accCount + count)).getOrElse(word -> count)
         } ++ (acc -- el.keys)
     }
   }
@@ -117,7 +116,7 @@ trait CreateWorkerRouter { this: Actor =>
     context.actorOf(
       ClusterRouterPool(BroadcastPool(10), ClusterRouterPoolSettings(
         totalInstances = 100, maxInstancesPerNode = 20,
-        allowLocalRoutees = false, useRole = None)).props(Props[JobWorker]),
+        allowLocalRoutees = false, useRoles = "None")).props(Props[JobWorker]()),
       name = "worker-router")
   }
 }

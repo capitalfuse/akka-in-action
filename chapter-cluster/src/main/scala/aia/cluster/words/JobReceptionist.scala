@@ -8,7 +8,7 @@ import akka.actor.Terminated
 
 
 object JobReceptionist {
-  def props = Props(new JobReceptionist)
+  def props: Props = Props(new JobReceptionist)
   def name = "receptionist"
 
   case class JobRequest(name: String, text: List[String])
@@ -32,19 +32,19 @@ class JobReceptionist extends Actor
   override def supervisorStrategy: SupervisorStrategy =
     SupervisorStrategy.stoppingStrategy
 
-  var jobs = Set[Job]()
-  var retries = Map[String, Int]()
+  var jobs: Set[Job] = Set[Job]()
+  var retries: Map[String, Int] = Map[String, Int]()
   val maxRetries = 3
 
 
-  def receive = {
-    case jr @ JobRequest(name, text) =>
+  def receive: Receive = {
+    case JobRequest(name, text) =>
       log.info(s"Received job $name")
 
       val masterName = "master-"+URLEncoder.encode(name, "UTF8")
       val jobMaster = createMaster(masterName)
 
-      val job = Job(name, text, sender, jobMaster)
+      val job = Job(name, text, respondTo = sender(), jobMaster = jobMaster)
       jobs = jobs + job
 
       jobMaster ! StartJob(name, text)
@@ -52,7 +52,7 @@ class JobReceptionist extends Actor
 
     case WordCount(jobName, map) =>
       log.info(s"Job $jobName complete.")
-      log.info(s"result:${map}")
+      log.info(s"result:$map")
       jobs.find(_.name == jobName).foreach { job =>
         job.respondTo ! JobSuccess(jobName, map)
         stop(job.jobMaster)
@@ -64,7 +64,7 @@ class JobReceptionist extends Actor
         log.error(s"Job Master $jobMaster terminated before finishing job.")
 
         val name = failedJob.name
-        log.error(s"Job ${name} failed.")
+        log.error(s"Job $name failed.")
         val nrOfRetries = retries.getOrElse(name, 0)
 
         if(maxRetries > nrOfRetries) {
@@ -82,5 +82,5 @@ class JobReceptionist extends Actor
 
 trait CreateMaster {
   def context: ActorContext
-  def createMaster(name: String) = context.actorOf(JobMaster.props, name)
+  def createMaster(name: String): ActorRef = context.actorOf(JobMaster.props, name)
 }

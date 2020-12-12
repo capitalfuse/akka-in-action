@@ -9,7 +9,7 @@ class ClusterDomainEventListener extends Actor
                     with ActorLogging {
   Cluster(context.system).subscribe(self, classOf[ClusterDomainEvent])
 
-  def receive ={
+  def receive: Receive ={
     case MemberUp(member) =>
       log.info(s"$member UP.")
     case MemberExited(member)=>
