@@ -1,22 +1,9 @@
 package aia.stream
 
-import akka.NotUsed
-import akka.stream.scaladsl.Framing
-import akka.stream.scaladsl.JsonFraming
-
-import akka.http.scaladsl.model.HttpCharsets._
-import akka.http.scaladsl.model.MediaTypes._
-import akka.http.scaladsl.model.headers.Accept
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
 import akka.http.scaladsl.model._
-
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import spray.json._
-
-
-import akka.http.scaladsl.marshalling.Marshaller
-import akka.http.scaladsl.marshalling.ToEntityMarshaller
 
 object LogEntityMarshaller extends EventMarshalling {
   

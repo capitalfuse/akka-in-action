@@ -1,19 +1,14 @@
 package aia.stream
 
-import java.nio.file.{ Path, Paths }
-import java.nio.file.StandardOpenOption
-import java.nio.file.StandardOpenOption._
-
-
-import scala.concurrent.Future
-
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.{ ActorMaterializer, IOResult }
+import akka.stream.{Materializer, IOResult}
 import akka.util.ByteString
-
+import com.typesafe.config.ConfigFactory
 import spray.json._
-import com.typesafe.config.{ Config, ConfigFactory }
+
+import java.nio.file.StandardOpenOption._
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 object EventFilter extends App with EventMarshalling {
   val config = ConfigFactory.load() 
@@ -74,9 +69,9 @@ object EventFilter extends App with EventMarshalling {
     Flow[Event].map(event => ByteString(event.toJson.compactPrint))
 
 
-  implicit val system = ActorSystem() 
-  implicit val ec = system.dispatcher
-  implicit val materializer = ActorMaterializer()
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
+  implicit val materializer: Materializer = Materializer(system)
 
 
   val composedFlow: Flow[ByteString, ByteString, NotUsed] =  

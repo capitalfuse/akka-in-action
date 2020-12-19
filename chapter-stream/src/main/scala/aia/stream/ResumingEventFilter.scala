@@ -1,18 +1,14 @@
 package aia.stream
 
-import java.nio.file.{ Path, Paths }
-import java.nio.file.StandardOpenOption
-import java.nio.file.StandardOpenOption._
-
-import scala.concurrent.Future
-
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.{ ActorMaterializer, IOResult }
+import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
-
+import com.typesafe.config.ConfigFactory
 import spray.json._
-import com.typesafe.config.{ Config, ConfigFactory }
+
+import java.nio.file.StandardOpenOption._
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 object ResumingEventFilter extends App with EventMarshalling {
   val config = ConfigFactory.load() 
@@ -45,10 +41,8 @@ object ResumingEventFilter extends App with EventMarshalling {
       .map(_.decodeString("UTF8"))
 
 
-  import akka.stream.ActorAttributes
-  import akka.stream.Supervision
-
   import LogStreamProcessor.LogParseException
+  import akka.stream.{ActorAttributes, Supervision}
 
   val decider : Supervision.Decider = {
     case _: LogParseException => Supervision.Resume
@@ -67,8 +61,8 @@ object ResumingEventFilter extends App with EventMarshalling {
   val serialize: Flow[Event, ByteString, NotUsed] =  
     Flow[Event].map(event => ByteString(event.toJson.compactPrint))
 
-  implicit val system = ActorSystem() 
-  implicit val ec = system.dispatcher
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
 
 
   val graphDecider : Supervision.Decider = { 
@@ -76,18 +70,13 @@ object ResumingEventFilter extends App with EventMarshalling {
     case _                    => Supervision.Stop
   }
 
-  import akka.stream.ActorMaterializerSettings
-  implicit val materializer = ActorMaterializer(
-    ActorMaterializerSettings(system)
-      .withSupervisionStrategy(graphDecider)
-  )
-
-
+  implicit val materializer: Materializer = Materializer(system)
 
   val composedFlow: Flow[ByteString, ByteString, NotUsed] =  
     frame.via(parse)
       .via(filter)
       .via(serialize)
+      .withAttributes(ActorAttributes.supervisionStrategy(graphDecider))
 
   val runnableGraph: RunnableGraph[Future[IOResult]] = 
     source.via(composedFlow).toMat(sink)(Keep.right)

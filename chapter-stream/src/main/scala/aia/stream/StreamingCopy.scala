@@ -1,18 +1,14 @@
 package aia.stream
 
 
-import java.nio.file.{ Path, Paths }
-import java.nio.file.StandardOpenOption
-import java.nio.file.StandardOpenOption._
-import scala.concurrent.Future
-
 import akka.actor.ActorSystem
-import akka.stream.{ ActorMaterializer, IOResult }
-import akka.stream.scaladsl.{ FileIO, RunnableGraph, Source, Sink }
+import akka.stream.scaladsl.{FileIO, RunnableGraph, Sink, Source}
+import akka.stream.{Materializer, IOResult}
 import akka.util.ByteString
+import com.typesafe.config.ConfigFactory
 
-
-import com.typesafe.config.{ Config, ConfigFactory }
+import java.nio.file.StandardOpenOption._
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 object StreamingCopy extends App {
   val config = ConfigFactory.load() 
@@ -40,9 +36,9 @@ object StreamingCopy extends App {
 
 
 
-  implicit val system = ActorSystem() 
-  implicit val ec = system.dispatcher
-  implicit val materializer = ActorMaterializer()
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
+  implicit val materializer: Materializer = Materializer(system)
 
   runnableGraph.run().foreach { result =>
     println(s"${result.status}, ${result.count} bytes read.")

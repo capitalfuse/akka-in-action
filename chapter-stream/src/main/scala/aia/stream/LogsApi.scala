@@ -1,28 +1,18 @@
 package aia.stream
 
-import java.nio.file.{ Files, Path, Paths }
-import java.nio.file.StandardOpenOption
-import java.nio.file.StandardOpenOption._
-
-import java.time.ZonedDateTime
-
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.util.{ Success, Failure }
-
-import akka.Done
-import akka.actor._
-import akka.util.ByteString
-
-import akka.stream.{ ActorAttributes, ActorMaterializer, IOResult }
-import akka.stream.scaladsl.{ FileIO, BidiFlow, Flow, Framing, Keep, Sink, Source }
-
+import akka.{Done, NotUsed}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
+import akka.stream.scaladsl.{BidiFlow, FileIO, Flow, Framing, Keep, Sink, Source}
+import akka.stream.{IOResult, Materializer}
+import akka.util.ByteString
 import spray.json._
+
+import java.nio.file.{Files, Path}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 
 class LogsApi(
@@ -30,31 +20,30 @@ class LogsApi(
   val maxLine: Int
 )(
   implicit val executionContext: ExecutionContext, 
-  val materializer: ActorMaterializer
+  val materializer: Materializer
 ) extends EventMarshalling {
-  def logFile(id: String) = logsDir.resolve(id)
+  def logFile(id: String): Path = logsDir.resolve(id)
 // route logic follows..
 
   
-  val inFlow = Framing.delimiter(ByteString("\n"), maxLine)
+  val inFlow: Flow[ByteString, Event, NotUsed] = Framing.delimiter(ByteString("\n"), maxLine)
     .map(_.decodeString("UTF8"))
     .map(LogStreamProcessor.parseLineEx)
     .collect { case Some(e) => e }
 
-  val outFlow = Flow[Event].map { event => 
+  val outFlow: Flow[Event, ByteString, NotUsed] = Flow[Event].map { event =>
     ByteString(event.toJson.compactPrint)
   }
-  val bidiFlow = BidiFlow.fromFlows(inFlow, outFlow)
+  val bidiFlow: BidiFlow[ByteString, Event, Event, ByteString, NotUsed] = BidiFlow.fromFlows(inFlow, outFlow)
 
 
-  import java.nio.file.StandardOpenOption
   import java.nio.file.StandardOpenOption._
 
-  val logToJsonFlow = bidiFlow.join(Flow[Event])
+  val logToJsonFlow: Flow[ByteString, ByteString, NotUsed] = bidiFlow.join(Flow[Event])
   
-  def logFileSink(logId: String) = 
+  def logFileSink(logId: String): Sink[ByteString, Future[IOResult]] =
     FileIO.toPath(logFile(logId), Set(CREATE, WRITE, APPEND))
-  def logFileSource(logId: String) = FileIO.fromPath(logFile(logId))
+  def logFileSource(logId: String): Source[ByteString, Future[IOResult]] = FileIO.fromPath(logFile(logId))
 
 
 
@@ -63,7 +52,7 @@ class LogsApi(
 
   
 
-  def postRoute = 
+  def postRoute: Route =
     pathPrefix("logs" / Segment) { logId =>
       pathEndOrSingleSlash {
         post {
@@ -77,7 +66,7 @@ class LogsApi(
             ) {
               case Success(IOResult(count, Success(Done))) =>
                 complete((StatusCodes.OK, LogReceipt(logId, count)))
-              case Success(IOResult(count, Failure(e))) =>
+              case Success(IOResult(_, Failure(e))) =>
                 complete((
                   StatusCodes.BadRequest, 
                   ParseError(logId, e.getMessage)
@@ -95,7 +84,7 @@ class LogsApi(
 
 
 
-  def getRoute = 
+  def getRoute: Route =
     pathPrefix("logs" / Segment) { logId =>
       pathEndOrSingleSlash {
         get { 
@@ -112,7 +101,7 @@ class LogsApi(
     }
 
 
-  def deleteRoute = 
+  def deleteRoute(): Route =
     pathPrefix("logs" / Segment) { logId =>
       pathEndOrSingleSlash {
         delete {

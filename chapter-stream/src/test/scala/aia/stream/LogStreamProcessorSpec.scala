@@ -1,24 +1,25 @@
 package aia.stream
 
-import java.nio.file._
-import java.nio.file.StandardOpenOption._
-
-import java.time.ZonedDateTime
-import scala.concurrent.{ Await, Future }
-import scala.concurrent.duration._
 import akka.actor._
-import akka.testkit._
-import akka.stream._
+import akka.stream.{Materializer, _}
 import akka.stream.scaladsl._
+import akka.testkit._
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-import org.scalatest.{WordSpecLike, MustMatchers}
+import java.nio.file.StandardOpenOption._
+import java.nio.file._
+import java.time.ZonedDateTime
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+
 
 class LogStreamProcessorSpec extends TestKit(ActorSystem("test-filter"))
-  with WordSpecLike
-  with MustMatchers
+  with AnyWordSpecLike
+  with Matchers
   with StopSystemAfterAll {
 
-   val lines = 
+   val lines: String =
    "my-host-1  | web-app | ok       | 2015-08-12T12:12:00.127Z | 5 tickets sold to RHCP.||\n" +
    "my-host-2  | web-app | ok       | 2015-08-12T12:12:01.127Z | 3 tickets sold to RHCP.| | \n" +
    "my-host-3  | web-app | ok       | 2015-08-12T12:12:02.127Z | 1 tickets sold to RHCP.| | \n" +
@@ -26,7 +27,7 @@ class LogStreamProcessorSpec extends TestKit(ActorSystem("test-filter"))
 
   "A log stream processor" must {
     "be able to read a log file and parse events" in {
-       implicit val materializer = ActorMaterializer()
+       implicit val materializer: Materializer = Materializer(ActorSystem("test-filter"))
        val path = Files.createTempFile("logs", ".txt")
 
        val bytes = lines.getBytes("UTF8")
@@ -49,7 +50,7 @@ class LogStreamProcessorSpec extends TestKit(ActorSystem("test-filter"))
     }
 
     "be able to read it's own output" in {
-      implicit val materializer = ActorMaterializer()
+      implicit val materializer: Materializer = Materializer(ActorSystem("test-filter"))
       val path = Files.createTempFile("logs", ".json")
       val json = 
       """
@@ -98,7 +99,7 @@ class LogStreamProcessorSpec extends TestKit(ActorSystem("test-filter"))
     }
 
     "be able to output JSON events to a Sink" in {
-      implicit val materializer = ActorMaterializer()
+      implicit val materializer: Materializer = Materializer(ActorSystem("test-filter"))
       import system.dispatcher
       val pathLog = Files.createTempFile("logs", ".txt")
       val pathEvents = Files.createTempFile("events", ".json")
@@ -112,7 +113,7 @@ class LogStreamProcessorSpec extends TestKit(ActorSystem("test-filter"))
       val results = convertToJsonBytes(errors(parseLogEvents(source)))
         .toMat(FileIO.toPath(pathEvents, Set(CREATE, WRITE, APPEND)))(Keep.right)
         .run
-        .flatMap { r =>
+        .flatMap { _ =>
           parseJsonEvents(jsonText(pathEvents))
           .runWith(Sink.seq[Event])
         }
@@ -130,9 +131,7 @@ class LogStreamProcessorSpec extends TestKit(ActorSystem("test-filter"))
     }
 
     "be able to rollup events" in {
-      implicit val materializer = ActorMaterializer()
-      import system.dispatcher
-      import LogStreamProcessor._
+      implicit val materializer: Materializer = Materializer(ActorSystem("test-filter"))
 
       val source = Source[Event](Vector(mkEvent, mkEvent, mkEvent, mkEvent))
        
@@ -140,14 +139,12 @@ class LogStreamProcessorSpec extends TestKit(ActorSystem("test-filter"))
         .runWith(Sink.seq[Seq[Event]])
 
       val grouped = Await.result(results, 10 seconds)
-      grouped(0).size must be (3)
+      grouped.head.size must be (3)
       grouped(1).size must be (1)
     }
 
     "be able to use implicit classes to extend DSL" in {
-      implicit val materializer = ActorMaterializer()
-      import system.dispatcher
-      import LogStreamProcessor._
+      implicit val materializer:Materializer = Materializer(ActorSystem("test-filter"))
 
       val source = Source[Event](Vector(mkEvent, mkEvent, mkEvent, mkEvent))
        
@@ -155,10 +152,10 @@ class LogStreamProcessorSpec extends TestKit(ActorSystem("test-filter"))
         .runWith(Sink.seq[Seq[Event]])
 
       val grouped = Await.result(results, 10 seconds)
-      grouped(0).size must be (3)
+      grouped.head.size must be (3)
       grouped(1).size must be (1)
     }
   }
 
-  def mkEvent = Event("host", "service", Error, ZonedDateTime.now(), "description")
+  def mkEvent: Event = Event("host", "service", Error, ZonedDateTime.now(), "description")
 }

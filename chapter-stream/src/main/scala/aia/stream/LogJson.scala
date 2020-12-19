@@ -1,76 +1,57 @@
 package aia.stream
 
-import java.nio.file.{ Files, Path }
-import java.io.File
-import java.time.ZonedDateTime
-
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.util.{ Success, Failure }
-
-import akka.Done
-import akka.actor._
+import akka.NotUsed
+import akka.stream.scaladsl.{BidiFlow, Flow, Framing, JsonFraming}
 import akka.util.ByteString
-
-import akka.stream.{ ActorAttributes, ActorMaterializer, IOResult }
-import akka.stream.scaladsl.JsonFraming
-import akka.stream.scaladsl.{ FileIO, BidiFlow, Flow, Framing, Keep, Sink, Source }
-
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server._
 import spray.json._
 
 object LogJson extends EventMarshalling 
     with NotificationMarshalling 
     with MetricMarshalling {
-  def textInFlow(maxLine: Int) = {
+  def textInFlow(maxLine: Int): Flow[ByteString, Event, NotUsed] = {
     Framing.delimiter(ByteString("\n"), maxLine)
     .map(_.decodeString("UTF8"))
     .map(LogStreamProcessor.parseLineEx)
     .collect { case Some(e) => e }
   }
 
-  def jsonInFlow(maxJsonObject: Int) = {
+  def jsonInFlow(maxJsonObject: Int): Flow[ByteString, Event, NotUsed] = {
     JsonFraming.objectScanner(maxJsonObject) 
       .map(_.decodeString("UTF8").parseJson.convertTo[Event])
   }
 
-  def jsonFramed(maxJsonObject: Int) =
+  def jsonFramed(maxJsonObject: Int): Flow[ByteString, ByteString, NotUsed] =
     JsonFraming.objectScanner(maxJsonObject) 
 
-  val jsonOutFlow = Flow[Event].map { event => 
+  val jsonOutFlow: Flow[Event, ByteString, NotUsed] = Flow[Event].map { event =>
     ByteString(event.toJson.compactPrint)
   }
 
-  val notifyOutFlow = Flow[Summary].map { ws => 
+  val notifyOutFlow: Flow[Summary, ByteString, NotUsed] = Flow[Summary].map { ws =>
     ByteString(ws.toJson.compactPrint)
   }
 
-  val metricOutFlow = Flow[Metric].map { m => 
+  val metricOutFlow: Flow[Metric, ByteString, NotUsed] = Flow[Metric].map { m =>
     ByteString(m.toJson.compactPrint)
   }
 
-  val textOutFlow = Flow[Event].map{ event => 
+  val textOutFlow: Flow[Event, ByteString, NotUsed] = Flow[Event].map{ event =>
     ByteString(LogStreamProcessor.logLine(event))
   }
 
-  def logToJson(maxLine: Int) = {
+  def logToJson(maxLine: Int): BidiFlow[ByteString, Event, Event, ByteString, NotUsed] = {
     BidiFlow.fromFlows(textInFlow(maxLine), jsonOutFlow)
   }
 
-  def jsonToLog(maxJsonObject: Int) = {
+  def jsonToLog(maxJsonObject: Int): BidiFlow[ByteString, Event, Event, ByteString, NotUsed] = {
     BidiFlow.fromFlows(jsonInFlow(maxJsonObject), textOutFlow)
   }
 
-  def logToJsonFlow(maxLine: Int) = {
+  def logToJsonFlow(maxLine: Int): Flow[ByteString, ByteString, NotUsed] = {
     logToJson(maxLine).join(Flow[Event])
   }
 
-  def jsonToLogFlow(maxJsonObject: Int) = {
+  def jsonToLogFlow(maxJsonObject: Int): Flow[ByteString, ByteString, NotUsed] = {
     jsonToLog(maxJsonObject).join(Flow[Event])
   }
 }

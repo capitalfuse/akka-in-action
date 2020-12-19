@@ -1,20 +1,15 @@
 package aia.stream
 
-import java.nio.file.{ Files, FileSystems, Path }
-import scala.concurrent.Future
-import scala.concurrent.duration._
-
-import akka.NotUsed
-import akka.actor.{ ActorSystem , Actor, Props }
+import akka.actor.ActorSystem
 import akka.event.Logging
-
-import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
-
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
-import akka.http.scaladsl.server.Directives._
+import akka.stream.Materializer
+import com.typesafe.config.ConfigFactory
 
-import com.typesafe.config.{ Config, ConfigFactory }
+import java.nio.file.{FileSystems, Files}
+import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.util.{Failure, Success}
 
 object FanLogsApp extends App {
 
@@ -29,30 +24,23 @@ object FanLogsApp extends App {
   val maxLine = config.getInt("log-stream-processor.max-line")
   val maxJsObject = config.getInt("log-stream-processor.max-json-object")
 
-  implicit val system = ActorSystem() 
-  implicit val ec = system.dispatcher
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
+
   
-  val decider : Supervision.Decider = {
-    case _: LogStreamProcessor.LogParseException => Supervision.Resume
-    case _                    => Supervision.Stop
-  }
-  
-  implicit val materializer = ActorMaterializer(
-   ActorMaterializerSettings(system)
-     .withSupervisionStrategy(decider)
-  )
+  implicit val materializer: Materializer = Materializer(system)
   
   val api = new FanLogsApi(logsDir, maxLine, maxJsObject).routes
  
   val bindingFuture: Future[ServerBinding] =
-    Http().bindAndHandle(api, host, port)
+    Http().newServerAt(host, port).bind(api)
  
   val log =  Logging(system.eventStream, "fan-logs")
   bindingFuture.map { serverBinding =>
     log.info(s"Bound to ${serverBinding.localAddress} ")
-  }.onFailure { 
-    case ex: Exception =>
-      log.error(ex, "Failed to bind to {}:{}!", host, port)
+  }.onComplete {
+    case Success(_) => println("Completed")
+    case Failure(_) => println("Failed to bind to {}:{}!", host, port)
       system.terminate()
   }
 }

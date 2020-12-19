@@ -1,20 +1,19 @@
 package aia.stream
 
-import java.time.ZonedDateTime
-import java.time.format.{ DateTimeFormatter, DateTimeParseException }
-
-import scala.util.Try
 import spray.json._
 
+import java.time.ZonedDateTime
+import java.time.format.{DateTimeFormatter, DateTimeParseException}
+
 trait EventMarshalling extends DefaultJsonProtocol {
-  implicit val dateTimeFormat = new JsonFormat[ZonedDateTime] {
-    def write(dateTime: ZonedDateTime) = JsString(dateTime.format(DateTimeFormatter.ISO_INSTANT))
-    def read(value: JsValue) = value match {
+  implicit val dateTimeFormat: JsonFormat[ZonedDateTime] = new JsonFormat[ZonedDateTime] {
+    def write(dateTime: ZonedDateTime): JsString = JsString(dateTime.format(DateTimeFormatter.ISO_INSTANT))
+    def read(value: JsValue): ZonedDateTime = value match {
       case JsString(str) => 
         try {
           ZonedDateTime.parse(str)
         } catch {
-          case e: DateTimeParseException => 
+          case _: DateTimeParseException =>
             val msg = s"Could not deserialize $str to ZonedDateTime"
             deserializationError(msg)
         }
@@ -24,9 +23,9 @@ trait EventMarshalling extends DefaultJsonProtocol {
     }
   }
 
-  implicit val stateFormat = new JsonFormat[State] {
-    def write(state: State) = JsString(State.norm(state))
-    def read(value: JsValue) = value match {
+  implicit val stateFormat: JsonFormat[State] = new JsonFormat[State] {
+    def write(state: State): JsString = JsString(State.norm(state))
+    def read(value: JsValue): State = value match {
       case JsString("ok") => Ok
       case JsString("warning") => Warning
       case JsString("error") => Error
@@ -37,7 +36,7 @@ trait EventMarshalling extends DefaultJsonProtocol {
     }
   }
 
-  implicit val eventFormat = jsonFormat7(Event)
-  implicit val logIdFormat = jsonFormat2(LogReceipt)
-  implicit val errorFormat = jsonFormat2(ParseError)
+  implicit val eventFormat: RootJsonFormat[Event] = jsonFormat7(Event)
+  implicit val logIdFormat: RootJsonFormat[LogReceipt] = jsonFormat2(LogReceipt)
+  implicit val errorFormat: RootJsonFormat[ParseError] = jsonFormat2(ParseError)
 }
